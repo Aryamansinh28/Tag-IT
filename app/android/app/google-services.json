@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "319374755543",
+    "project_id": "tagit-22a41",
+    "storage_bucket": "tagit-22a41.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:319374755543:android:03b021b3a453f3c0465292",
+        "android_client_info": {
+          "package_name": "com.example.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBa0Rl4MLZb7XIaAJr6WIrAoKLdic-klBA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
