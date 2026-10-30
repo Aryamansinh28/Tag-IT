@@ -1,0 +1,29 @@
+# Database Schema
+
+## Users
+
+```json
+{
+  "uid": "12345",
+  "name": "Aryaman",
+  "email": "aryaman@gmail.com",
+  "points": 120,
+  "reportsCount": 15
+}
+```
+
+## Reports
+
+```json
+{
+  "reportId": "r001",
+  "userId": "12345",
+  "imageUrl": "https://...",
+  "latitude": 12.9698,
+  "longitude": 79.1559,
+  "timestamp": "2026-08-02",
+  "Severity": "Moderate",
+  "status": "Pending",
+  "description": "Plastic bottles near the hostel gate"
+}
+```

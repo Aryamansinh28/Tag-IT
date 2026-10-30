@@ -1,13 +1,37 @@
 # Screens
 
-1. Splash Screen
 
-2. Login / Signup Screen
+## 1. Splash Screen
 
-3. Home Screen
+- App logo
+- Loading animation
 
-4. Report Trash Screen
+## 2. Login Screen
 
-5. Map Screen
+- Email
+- Password
+- Sign up button
 
-6. Profile Screen
+## 3. Home Screen
+
+- View recent reports
+- Report trash button
+- Open map
+
+## 4. Report Trash Screen
+
+- Upload image
+- Add description
+- Confirm location
+- Submit report
+
+## 5. Map Screen
+
+- View all reports
+- Click marker to see details
+
+## 6. Profile Screen
+
+- Name
+- Points
+- Number of reports

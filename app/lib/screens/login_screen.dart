@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'home_screen.dart';
 
@@ -14,6 +15,95 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  
+
+Future<void> navigateByRole(User user) async {
+  try {
+    final userRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid);
+
+    final profile = await userRef.get();
+
+    if (!mounted) return;
+
+    if (!profile.exists) {
+      // Create a profile for an older account.
+      await userRef.set({
+        'uid': user.uid,
+        'email': user.email,
+        'role': 'user',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      print('PROFILE: created for existing account');
+    }
+
+    final updatedProfile = await userRef.get();
+    final role = updatedProfile.data()?['role'];
+
+    if (!mounted) return;
+
+    if (role == 'user' || role == 'organization') {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const HomeScreen(),
+        ),
+      );
+
+      print('LOGIN: role = $role');
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Invalid account role. Please contact support.'),
+        ),
+      );
+    }
+  } catch (e) {
+    print('PROFILE ERROR: $e');
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Could not load your profile. Check your connection and try again.',
+        ),
+      ),
+    );
+  }
+}
+
+
+  
+Future<String?> chooseAccountRole() async {
+  return showDialog<String>(
+    context: context,
+    barrierDismissible: false,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Choose your account type'),
+      content: const Text(
+        'How would you like to use TagIT?',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.pop(dialogContext, 'user');
+          },
+          child: const Text('Community User'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            Navigator.pop(dialogContext, 'organization');
+          },
+          child: const Text('Organization'),
+        ),
+      ],
+    ),
+  );
+}
+
 
   Future<void> signInWithGoogle() async {
     try {
@@ -59,14 +149,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
       print("EMAIL: sign-in successful");
 
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const HomeScreen(),
-          ),
-        );
-      }
+   await navigateByRole(
+  FirebaseAuth.instance.currentUser!,
+);
     } on FirebaseAuthException catch (e) {
       print("EMAIL SIGN-IN ERROR:");
       print("Code: ${e.code}");
@@ -82,40 +167,79 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> createAccount() async {
-    try {
-      final email = emailController.text.trim();
-      final password = passwordController.text.trim();
 
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
+Future<void> createAccount() async {
+  try {
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Enter your email and password.'),
+        ),
       );
+      return;
+    }
 
-      print("EMAIL: account created successfully");
+    final role = await chooseAccountRole();
 
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const HomeScreen(),
+    if (role == null || !mounted) return;
+
+    final credential = await FirebaseAuth.instance
+        .createUserWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+
+    final user = credential.user!;
+
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .set({
+      'uid': user.uid,
+      'email': user.email,
+      'role': role,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    print('ACCOUNT: created with role $role');
+
+    if (!mounted) return;
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const HomeScreen(),
+      ),
+    );
+  } on FirebaseAuthException catch (e) {
+    print('ACCOUNT CREATION ERROR: ${e.code}');
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message ?? 'Account creation failed.'),
+        ),
+      );
+    }
+  } catch (e) {
+    print('PROFILE CREATION ERROR: $e');
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Account was created, but profile setup failed. '
+            'Please contact support before creating another account.',
           ),
-        );
-      }
-    } on FirebaseAuthException catch (e) {
-      print("ACCOUNT CREATION ERROR:");
-      print("Code: ${e.code}");
-      print("Message: ${e.message}");
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.message ?? "Account creation failed."),
-          ),
-        );
-      }
+        ),
+      );
     }
   }
+}
+
 
   @override
   void dispose() {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'campaign_screen.dart';
 
 import 'report_screen.dart';
 import 'login_screen.dart';
@@ -210,15 +211,14 @@ class HomeScreen extends StatelessWidget {
             Card(
               child: InkWell(
                 borderRadius: BorderRadius.circular(16),
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        "Campaigns are coming soon.",
-                      ),
-                    ),
-                  );
-                },
+      onTap: () {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => const CampaignScreen(),
+    ),
+  );
+},
                 child: Padding(
                   padding: const EdgeInsets.all(18),
                   child: Row(

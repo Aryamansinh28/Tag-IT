@@ -1,4 +1,6 @@
 import 'dart:io';
+import '../services/image_upload_service.dart';
+import '../services/waste_analysis_service.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -23,6 +25,7 @@ class _ReportScreenState extends State<ReportScreen> {
   Position? position;
 
   String locationMessage = "Capture an image to detect location.";
+  bool isSubmitting = false;
 
   Future<void> captureImage() async {
     final XFile? photo = await picker.pickImage(
@@ -43,151 +46,177 @@ class _ReportScreenState extends State<ReportScreen> {
     }
   }
 
-  Future<void> getLocation() async {
-    print("LOCATION: function started");
 
-    bool serviceEnabled =
+Future<void> getLocation() async {
+  try {
+    if (mounted) {
+      setState(() {
+        locationMessage = "Checking location services...";
+      });
+    }
+
+    final serviceEnabled =
         await Geolocator.isLocationServiceEnabled();
 
-    print("LOCATION: service enabled = $serviceEnabled");
-
     if (!serviceEnabled) {
-      setState(() {
-        locationMessage = "Location services are disabled.";
-      });
+      if (mounted) {
+        setState(() {
+          locationMessage = "Enable location services on your device.";
+        });
+      }
       return;
     }
 
-    LocationPermission permission =
-        await Geolocator.checkPermission();
-
-    print("LOCATION: permission = $permission");
+    var permission = await Geolocator.checkPermission();
 
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-
-      print("LOCATION: permission after request = $permission");
     }
 
-    if (permission == LocationPermission.denied) {
-      setState(() {
-        locationMessage = "Location permission denied.";
-      });
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      if (mounted) {
+        setState(() {
+          locationMessage = "Location permission is required.";
+        });
+      }
       return;
     }
 
-    if (permission == LocationPermission.deniedForever) {
+    if (mounted) {
       setState(() {
-        locationMessage =
-            "Location permission permanently denied.";
+        locationMessage = "Getting coordinates...";
       });
-      return;
     }
 
-    setState(() {
-      locationMessage = "Getting coordinates...";
-    });
-
-    Position currentPosition =
-        await Geolocator.getCurrentPosition();
-
-    print(
-      "LOCATION: latitude = ${currentPosition.latitude}",
+    final currentPosition = await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        timeLimit: Duration(seconds: 15),
+      ),
     );
 
-    print(
-      "LOCATION: longitude = ${currentPosition.longitude}",
-    );
+    if (!mounted) return;
 
     setState(() {
       position = currentPosition;
-
       locationMessage =
           "${currentPosition.latitude.toStringAsFixed(6)}, "
           "${currentPosition.longitude.toStringAsFixed(6)}";
     });
+  } catch (e) {
+    if (!mounted) return;
+
+    setState(() {
+      locationMessage =
+          "Couldn't get location. Check GPS and try again.";
+    });
+
+    debugPrint("LOCATION ERROR: $e");
   }
+}
+
 
   Future<void> submitReport() async {
+    // Prevent repeated taps from uploading/analyzing/submitting the
+    // same report more than once while this operation is in progress.
+    if (isSubmitting) return;
+
+    if (image == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please capture an image first.")),
+      );
+      return;
+    }
+
+    if (position == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Location is required.")),
+      );
+      return;
+    }
+
+    final description = descriptionController.text.trim();
+    if (description.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please describe the waste.")),
+      );
+      return;
+    }
+
+    final User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please login before submitting.")),
+      );
+      return;
+    }
+
+    // Capture values once, so the form cannot change the data mid-submit.
+    final File photoFile = File(image!.path);
+    final double latitude = position!.latitude;
+    final double longitude = position!.longitude;
+
+    setState(() {
+      isSubmitting = true;
+    });
+
     try {
-      if (image == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Please capture an image first."),
-          ),
-        );
-        return;
-      }
+      debugPrint("REPORT: uploading image...");
+      final imageUrl = await ImageUploadService.uploadImage(photoFile);
+      debugPrint("REPORT: image uploaded successfully");
 
-      if (position == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Location is required."),
-          ),
-        );
-        return;
-      }
+      debugPrint("REPORT: analyzing image with Gemini...");
+      final aiAnalysis = await WasteAnalysisService.analyzeImage(imageUrl);
+      debugPrint("REPORT: AI analysis completed");
 
-      final description =
-          descriptionController.text.trim();
+      // Create exactly one document only after upload and analysis succeed.
+      // Store all report fields together to avoid separate feed entries.
+      final reportRef =
+          FirebaseFirestore.instance.collection("reports").doc();
 
-      if (description.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Please describe the waste."),
-          ),
-        );
-        return;
-      }
-
-      final User? user =
-          FirebaseAuth.instance.currentUser;
-
-      if (user == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Please login before submitting."),
-          ),
-        );
-        return;
-      }
-
-      print("REPORT: submitting report...");
-
-      await FirebaseFirestore.instance
-          .collection("reports")
-          .add({
+      await reportRef.set({
         "userId": user.uid,
         "description": description,
-        "latitude": position!.latitude,
-        "longitude": position!.longitude,
+        "latitude": latitude,
+        "longitude": longitude,
         "timestamp": FieldValue.serverTimestamp(),
+        "imageUrl": imageUrl,
+        "wasteDetected": aiAnalysis["waste_detected"],
+        "wasteType": aiAnalysis["waste_type"],
+        "aiDescription": aiAnalysis["description"],
+        "severity": aiAnalysis["severity"],
+        "analysisStatus": "completed",
       });
 
-      print("REPORT: report submitted successfully");
+      debugPrint("REPORT: report submitted successfully");
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Report submitted successfully!"),
+        ),
+      );
+      Navigator.pop(context);
+    } catch (e, stackTrace) {
+      debugPrint("REPORT ERROR: $e");
+      debugPrint("$stackTrace");
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              "Report submitted successfully!",
+              "Failed to submit report. Please try again.",
             ),
           ),
         );
-
-        Navigator.pop(context);
       }
-    } catch (e) {
-      print("REPORT ERROR: $e");
-
+    } finally {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              "Failed to submit report.",
-            ),
-          ),
-        );
+        setState(() {
+          isSubmitting = false;
+        });
       }
     }
   }
@@ -454,17 +483,22 @@ class _ReportScreenState extends State<ReportScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: submitReport,
-                icon: const Icon(
-                  Icons.send_outlined,
-                ),
-                label: const Padding(
-                  padding: EdgeInsets.symmetric(
-                    vertical: 2,
-                  ),
+                onPressed: isSubmitting ? null : submitReport,
+                icon: isSubmitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.send_outlined),
+                label: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
                   child: Text(
-                    "Submit Report",
-                    style: TextStyle(
+                    isSubmitting ? "Submitting..." : "Submit Report",
+                    style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
