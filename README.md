@@ -1,32 +1,136 @@
+# Tag-IT — Civic Waste Reporting and Cleanup Platform
 
-# 🌍 TagIT
+Tag-IT is a mobile application that helps communities report waste-disposal issues, visualize reported locations, and coordinate cleanup activities. It combines location-based reporting, AI-assisted waste analysis, community participation, and cleanup campaigns.
 
-TagIT is a community-driven mobile application that aims to make cities cleaner by empowering citizens to report waste and garbage dumps in their surroundings. Users can upload images of waste, tag the location, and contribute to a shared platform that helps identify areas requiring immediate attention.
+## Features
 
-In many cities, garbage accumulation often goes unreported or takes a long time to reach the appropriate authorities. TagIT seeks to bridge this gap by creating a simple and accessible platform where people can actively participate in maintaining cleaner public spaces.
+- **User Authentication:** Sign in to access the application.
+- **Waste Reporting:** Capture waste images and submit reports with location information.
+- **AI-Assisted Analysis:** Analyze submitted waste images using the backend AI service.
+- **Community Feed:** Browse submitted reports and view their cleanup status.
+- **Waste Map:** View reported waste locations on an interactive map.
+- **Cleanup Verification:** Submit cleanup evidence, including before-and-after photos and location information.
+- **Cleaned Projects:** View completed cleanup records.
+- **Campaigns:** Browse and create community cleanup campaigns.
 
-The long-term vision of TagIT is to go beyond simple reporting by leveraging artificial intelligence and data analytics to identify waste hotspots, analyze trends, and provide actionable insights for better urban waste management.
+## Technology Stack
 
-## ✨ Vision
+| Component | Technology |
+|---|---|
+| Mobile frontend | Flutter, Dart |
+| Authentication | Firebase Authentication |
+| Database | Cloud Firestore |
+| Backend API | Python, FastAPI |
+| AI image analysis | Google Gemini |
+| Image hosting | ImageKit |
+| Maps and location | Google Maps Platform |
 
-Our goal is to transform waste reporting from an isolated activity into a collaborative effort between citizens and local communities, ultimately contributing to cleaner, healthier, and more sustainable cities.
+## Project Structure
 
-## 🚀 Current Features
+```text
+Tag-IT/
+├── app/                 # Flutter mobile application
+│   └── lib/
+│       ├── screens/     # Application screens
+│       └── services/    # App services and integrations
+├── backend/             # FastAPI backend
+├── docs/                # Project documentation
+└── README.md
+```
 
-- Interactive home screen
-- User-friendly mobile interface
-- Navigation between screens *(under development)*
+## System Overview
 
-## 🔮 Planned Features
+The Flutter application provides the user interface and communicates with Firebase and the backend services.
 
-- 📷 Upload images of waste
-- 📍 Geo-tagging and location tracking
-- 🗺️ Interactive map of reported locations
-- 📰 Community feed
-- 🤖 AI-powered waste classification
-- 📊 Heatmaps and analytics
-- 🏆 Community rewards and badges
+- Firebase Authentication manages user sign-in.
+- Cloud Firestore stores application data, including waste reports and cleanup records.
+- The FastAPI backend exposes the waste-analysis endpoint.
+- The backend uses Google Gemini to analyze submitted waste images.
+- ImageKit is used for image hosting.
+- Google Maps Platform provides map and location functionality.
 
-## 🎯 Motivation
+## Setup and Installation
 
-TagIT was created with the idea that small actions by individuals can collectively lead to a significant impact on urban cleanliness. By enabling citizens to report and track waste, the platform encourages community participation and environmental responsibility.
+### Prerequisites
+
+Install the following before running the project:
+
+- Flutter SDK
+- Dart SDK
+- Android Studio or another supported Flutter development environment
+- Python 3
+- A Firebase project configured for the application
+- Required API credentials for the integrated services
+
+### Run the Flutter Application
+
+1. Clone the repository:
+
+   ```bash
+   git clone <REPOSITORY_URL>
+   cd Tag-IT
+   ```
+
+2. Navigate to the Flutter app:
+
+   ```bash
+   cd app
+   ```
+
+3. Install dependencies:
+
+   ```bash
+   flutter pub get
+   ```
+
+4. Configure Firebase and the required API credentials using the project's setup files and your development environment.
+
+5. Run the application:
+
+   ```bash
+   flutter run
+   ```
+
+### Run the Backend Locally
+
+1. Open a terminal in the `backend/` directory.
+2. Create and activate a Python virtual environment:
+
+   ```bash
+   python -m venv .venv
+   ```
+
+   Windows:
+
+   ```bash
+   .venv\Scripts\activate
+   ```
+
+3. Install dependencies:
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. Configure the required environment variables. Do not commit private credentials or `.env` files.
+
+5. Start the FastAPI server using the backend's configured entry point.
+
+The deployed backend is hosted at:
+
+`https://tag-it-backend.onrender.com`
+
+
+The repository contains the Flutter application, backend implementation, and project documentation.
+
+## Security
+
+- Do not commit private credentials, access tokens, or `.env` files.
+- Restrict Google API keys to the required APIs and application identifiers.
+- Configure Firebase Authentication and Firestore security rules appropriately.
+
+## Project Documentation
+
+Additional documentation is available in the `docs/` directory, including architecture, database schema, navigation flow, technology stack, and user flow.
+
+
